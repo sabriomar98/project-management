@@ -1,0 +1,50 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search...",
+    "filter": "Filter",
+    "actions": "Actions"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "signInWithGoogle": "Sign in with Google"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "tasks": "Tasks",
+    "calendar": "Calendar",
+    "settings": "Settings",
+    "notifications": "Notifications"
+  },
+  "project": {
+    "title": "Projects",
+    "create": "Create Project",
+    "name": "Project Name",
+    "description": "Description",
+    "status": "Status",
+    "active": "Active",
+    "archived": "Archived"
+  },
+  "task": {
+    "title": "Tasks",
+    "create": "Create Task",
+    "assignee": "Assignee",
+    "priority": "Priority",
+    "status": "Status",
+    "dueDate": "Due Date",
+    "estimate": "Estimate"
+  }
+}
