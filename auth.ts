@@ -1,23 +1,32 @@
-import NextAuth from "next-auth"
-import type { NextAuthConfig } from "next-auth"
-import Google from "next-auth/providers/google"
-import Credentials from "next-auth/providers/credentials"
+import type { NextAuthOptions } from "next-auth"
+import { getServerSession } from "next-auth/next"
+import GoogleProvider from "next-auth/providers/google"
+import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "@/lib/prisma"
+import { PrismaAdapter } from "@next-auth/prisma-adapter" // ✅
 
-const authConfig: NextAuthConfig = {
+import { prisma, isMockPrisma } from "@/lib/prisma"
+
+export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,   // ✅ required
+  debug: true,
+  adapter: isMockPrisma ? undefined : (PrismaAdapter(prisma) as any),
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
-    Credentials({
+    CredentialsProvider({
+      name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        if (isMockPrisma) {
+          return null
+        }
+
         if (!credentials?.email || !credentials?.password) {
           return null
         }
@@ -47,23 +56,12 @@ const authConfig: NextAuthConfig = {
   ],
   pages: {
     signIn: "/auth/signin",
-    signOut: "/auth/signout",
     error: "/auth/error",
   },
+  session: {
+    strategy: "jwt" as const,
+  },
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user
-      const isOnDashboard = nextUrl.pathname.startsWith("/dashboard")
-      const isOnAuth = nextUrl.pathname.startsWith("/auth")
-
-      if (isOnDashboard) {
-        if (isLoggedIn) return true
-        return false
-      } else if (isLoggedIn && isOnAuth) {
-        return Response.redirect(new URL("/dashboard", nextUrl))
-      }
-      return true
-    },
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
@@ -79,11 +77,14 @@ const authConfig: NextAuthConfig = {
       }
       return session
     },
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url
+      return `${baseUrl}/dashboard`
+    },
   },
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma) as any,
-  session: { strategy: "jwt" },
-  ...authConfig,
-})
+export const auth = () => getServerSession(authOptions)

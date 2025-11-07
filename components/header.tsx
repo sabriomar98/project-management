@@ -2,11 +2,10 @@
 
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { UserNav } from "@/components/user-nav"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { LocaleToggle } from "@/components/locale-toggle"
-import { SearchCommand } from "@/components/search-command"
 import Link from "next/link"
+import { SearchCommand } from "./search-command"
+import { ThemeToggle } from "./theme-toggle"
+import { UserNav } from "./user-nav"
 
 interface DashboardHeaderProps {
   user: {
@@ -27,7 +26,6 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <LocaleToggle />
         <ThemeToggle />
         <Button variant="ghost" size="icon" className="relative" asChild>
           <Link href="/dashboard/notifications">

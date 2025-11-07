@@ -1,10 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +10,6 @@ import { Icons } from "@/components/icons"
 import Link from "next/link"
 
 export function SignUpForm() {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,10 +33,10 @@ export function SignUpForm() {
       if (!response.ok) {
         const data = await response.json()
         setError(data.error || "Failed to create account")
+        setIsLoading(false)
         return
       }
 
-      // Sign in after successful signup
       const result = await signIn("credentials", {
         email,
         password,
@@ -47,14 +44,13 @@ export function SignUpForm() {
       })
 
       if (result?.error) {
-        setError("Account created but failed to sign in")
-      } else {
-        router.push("/dashboard")
-        router.refresh()
+        setError("Account created but failed to sign in. Please try signing in manually.")
+        setIsLoading(false)
+      } else if (result?.ok) {
+        window.location.href = "/dashboard"
       }
     } catch (error) {
       setError("An error occurred. Please try again.")
-    } finally {
       setIsLoading(false)
     }
   }

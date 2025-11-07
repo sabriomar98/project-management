@@ -1,10 +1,11 @@
 import { getCurrentUser } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Building2, Users } from "lucide-react"
 import Link from "next/link"
 import { CreateOrganizationDialog } from "@/components/create-organization-dialog"
+import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal } from "react"
 
 export default async function OrganizationsPage() {
   const user = await getCurrentUser()
@@ -13,15 +14,26 @@ export default async function OrganizationsPage() {
     return null
   }
 
-  const organizations = await sql`
-    SELECT o.*,
-           (SELECT COUNT(*)::int FROM organization_members WHERE "organizationId" = o.id) as member_count,
-           (SELECT COUNT(*)::int FROM projects WHERE "organizationId" = o.id) as project_count
-    FROM organizations o
-    JOIN organization_members om ON o.id = om."organizationId"
-    WHERE om."userId" = ${user.id}
-    ORDER BY o."createdAt" DESC
-  `
+  const organizations = await prisma.organization.findMany({
+    where: {
+      members: {
+        some: {
+          userId: user.id,
+        },
+      },
+    },
+    include: {
+      _count: {
+        select: {
+          members: true,
+          projects: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  })
 
   return (
     <div className="space-y-6">
@@ -54,7 +66,7 @@ export default async function OrganizationsPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {organizations.map((org: any) => (
+          {organizations.map((org: { id: Key | null | undefined; slug: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; _count: { members: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; projects: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined } }) => (
             <Link key={org.id} href={`/dashboard/organizations/${org.slug}`}>
               <Card className="hover:border-primary transition-colors cursor-pointer">
                 <CardHeader>
@@ -72,11 +84,11 @@ export default async function OrganizationsPage() {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
-                      {org.member_count} members
+                      {org._count.members} members
                     </div>
                     <div className="flex items-center gap-1">
                       <Building2 className="h-4 w-4" />
-                      {org.project_count} projects
+                      {org._count.projects} projects
                     </div>
                   </div>
                 </CardContent>

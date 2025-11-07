@@ -1,10 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { signIn, useSession } from "next-auth/react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,8 +12,12 @@ import Link from "next/link"
 
 export function SignInForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { update } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -34,20 +37,23 @@ export function SignInForm() {
 
       if (result?.error) {
         setError("Invalid email or password")
-      } else {
-        router.push("/dashboard")
+        setIsLoading(false)
+      } if (result?.ok) {
+        await update()
+        router.replace(callbackUrl) // nicer UX
         router.refresh()
       }
+
     } catch (error) {
+      console.error(error)
       setError("An error occurred. Please try again.")
-    } finally {
       setIsLoading(false)
     }
   }
 
   async function handleGoogleSignIn() {
     setIsLoading(true)
-    await signIn("google", { callbackUrl: "/dashboard" })
+    await signIn("google", { callbackUrl })
   }
 
   return (

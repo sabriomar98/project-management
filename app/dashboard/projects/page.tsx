@@ -1,10 +1,11 @@
 import { getCurrentUser } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, FolderKanban } from "lucide-react"
 import Link from "next/link"
 import { CreateProjectDialog } from "@/components/create-project-dialog"
+import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal } from "react"
 
 export default async function ProjectsPage() {
   const user = await getCurrentUser()
@@ -13,24 +14,44 @@ export default async function ProjectsPage() {
     return null
   }
 
-  const projects = await sql`
-    SELECT p.*,
-           json_build_object('id', o.id, 'name', o.name) as organization,
-           (SELECT COUNT(*)::int FROM tasks WHERE "projectId" = p.id) as task_count,
-           (SELECT COUNT(*)::int FROM sprints WHERE "projectId" = p.id) as sprint_count
-    FROM projects p
-    JOIN organizations o ON p."organizationId" = o.id
-    JOIN organization_members om ON o.id = om."organizationId"
-    WHERE om."userId" = ${user.id}
-    ORDER BY p."updatedAt" DESC
-  `
+  const projects = await prisma.project.findMany({
+    where: {
+      organization: {
+        members: {
+          some: {
+            userId: user.id,
+          },
+        },
+      },
+    },
+    include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      _count: {
+        select: {
+          tasks: true,
+          sprints: true,
+        },
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  })
 
-  const organizations = await sql`
-    SELECT o.*
-    FROM organizations o
-    JOIN organization_members om ON o.id = om."organizationId"
-    WHERE om."userId" = ${user.id}
-  `
+  const organizations = await prisma.organization.findMany({
+    where: {
+      members: {
+        some: {
+          userId: user.id,
+        },
+      },
+    },
+  })
 
   return (
     <div className="space-y-6">
@@ -63,7 +84,7 @@ export default async function ProjectsPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project: any) => (
+          {projects.map((project: { id: Key | null | undefined; key: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; organization: { name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined }; description: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; _count: { tasks: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; sprints: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined }; status: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined }) => (
             <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
               <Card className="hover:border-primary transition-colors cursor-pointer">
                 <CardHeader>
@@ -83,16 +104,15 @@ export default async function ProjectsPage() {
                       <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
                     )}
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{project.task_count} tasks</span>
-                      <span>{project.sprint_count} sprints</span>
+                      <span>{project._count.tasks} tasks</span>
+                      <span>{project._count.sprints} sprints</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          project.status === "ACTIVE"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                            : project.status === "PLANNING"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                        }`}
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${project.status === "ACTIVE"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                          : project.status === "PLANNING"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}
                       >
                         {project.status}
                       </span>

@@ -1,4 +1,5 @@
 let prisma: any
+let isMockPrisma = false
 
 try {
   // Try to import PrismaClient (works locally after `npx prisma generate`)
@@ -16,15 +17,14 @@ try {
 
   if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 } catch (error) {
-  // Fallback for v0 preview environment where Prisma Client is not generated
-  console.log("[v0] Using mock Prisma Client for preview")
+  isMockPrisma = true
 
   prisma = {
     user: {
       findUnique: async () => null,
       findMany: async () => [],
-      create: async (data: any) => ({ id: "mock-id", ...data.data }),
-      update: async (data: any) => ({ id: data.where.id, ...data.data }),
+      create: async (data: any) => ({ id: "mock-id", ...data.data, createdAt: new Date(), updatedAt: new Date() }),
+      update: async (data: any) => ({ id: data.where.id, ...data.data, updatedAt: new Date() }),
       delete: async (data: any) => ({ id: data.where.id }),
       count: async () => 0,
     },
@@ -32,7 +32,7 @@ try {
       findMany: async () => [],
       findUnique: async () => null,
       create: async (data: any) => ({ id: "mock-org-id", ...data.data, createdAt: new Date(), updatedAt: new Date() }),
-      update: async (data: any) => ({ id: data.where.id, ...data.data }),
+      update: async (data: any) => ({ id: data.where.id, ...data.data, updatedAt: new Date() }),
       delete: async (data: any) => ({ id: data.where.id }),
       count: async () => 0,
     },
@@ -45,7 +45,7 @@ try {
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
-      update: async (data: any) => ({ id: data.where.id, ...data.data }),
+      update: async (data: any) => ({ id: data.where.id, ...data.data, updatedAt: new Date() }),
       delete: async (data: any) => ({ id: data.where.id }),
       count: async () => 0,
     },
@@ -53,7 +53,7 @@ try {
       findMany: async () => [],
       findUnique: async () => null,
       create: async (data: any) => ({ id: "mock-task-id", ...data.data, createdAt: new Date(), updatedAt: new Date() }),
-      update: async (data: any) => ({ id: data.where.id, ...data.data }),
+      update: async (data: any) => ({ id: data.where.id, ...data.data, updatedAt: new Date() }),
       delete: async (data: any) => ({ id: data.where.id }),
       count: async () => 0,
     },
@@ -66,7 +66,7 @@ try {
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
-      update: async (data: any) => ({ id: data.where.id, ...data.data }),
+      update: async (data: any) => ({ id: data.where.id, ...data.data, updatedAt: new Date() }),
       delete: async (data: any) => ({ id: data.where.id }),
     },
     comment: {
@@ -82,7 +82,7 @@ try {
     notification: {
       findMany: async () => [],
       create: async (data: any) => ({ id: "mock-notification-id", ...data.data, createdAt: new Date() }),
-      update: async (data: any) => ({ id: data.where.id, ...data.data }),
+      update: async (data: any) => ({ id: data.where.id, ...data.data, updatedAt: new Date() }),
       count: async () => 0,
     },
     label: {
@@ -106,4 +106,4 @@ try {
   }
 }
 
-export { prisma }
+export { prisma, isMockPrisma }
