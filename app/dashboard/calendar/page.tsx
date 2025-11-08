@@ -5,56 +5,44 @@ import { CalendarView } from "@/components/calendar-view"
 
 export default async function CalendarPage() {
   const user = await getCurrentUser()
+  if (!user) redirect("/auth/signin")
 
-  if (!user) {
-    redirect("/auth/signin")
-  }
-
-  const tasks = await prisma.task.findMany({
-    where: {
-      project: {
-        organization: {
-          members: {
-            some: {
-              userId: user.id,
-            },
-          },
+  const [tasks, sprints] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        project: {
+          organization: { members: { some: { userId: user.id } } },
+        },
+        dueDate: { not: null },
+      },
+      include: {
+        project: { select: { name: true, key: true } },
+        assignee: true,
+      },
+      orderBy: { dueDate: "asc" },
+    }),
+    prisma.sprint.findMany({
+      where: {
+        project: {
+          organization: { members: { some: { userId: user.id } } },
         },
       },
-      dueDate: {
-        not: null,
+      include: {
+        project: { select: { name: true } },
       },
-    },
-    include: {
-      project: true,
-      assignee: true,
-    },
-  })
-
-  const sprints = await prisma.sprint.findMany({
-    where: {
-      project: {
-        organization: {
-          members: {
-            some: {
-              userId: user.id,
-            },
-          },
-        },
-      },
-    },
-    include: {
-      project: true,
-    },
-  })
+      orderBy: { startDate: "asc" },
+    }),
+  ])
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="rounded-2xl border bg-linear-to-br from-primary/10 via-background to-background p-6">
         <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
-        <p className="text-muted-foreground">View all your tasks and sprints in a calendar format</p>
+        <p className="text-muted-foreground">
+          See your tasks (by priority) and sprint windows across the month.
+        </p>
       </div>
-      <CalendarView tasks={tasks} sprints={sprints} />
+      <CalendarView tasks={tasks as any} sprints={sprints as any} />
     </div>
   )
 }
