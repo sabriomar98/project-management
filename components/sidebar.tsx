@@ -5,13 +5,14 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, FolderKanban, Calendar, BarChart3, Settings, Users, Building2, Bell, Tag, ChevronLeft, ChevronRight } from "lucide-react"
+import { LayoutDashboard,TrashIcon, FolderKanban, Calendar, BarChart3, Settings, Users, Building2, Bell, Tag, ChevronLeft, ChevronRight } from "lucide-react"
 
 type SidebarProps = { className?: string }
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { name: "Tasks", href: "/dashboard/tasks", icon: TrashIcon },
   { name: "Calendar", href: "/dashboard/calendar", icon: Calendar },
   { name: "Teams", href: "/dashboard/teams", icon: Users },
   { name: "Organizations", href: "/dashboard/organizations", icon: Building2 },

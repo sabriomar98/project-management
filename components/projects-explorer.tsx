@@ -5,14 +5,23 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-    Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from "@/components/ui/card"
-import {
-    List, Grid2X2, SortAsc, FolderKanban, Search, Building2, Filter, CalendarClock,
+    List,
+    Grid2X2,
+    SortAsc,
+    FolderKanban,
+    Search,
+    Building2,
+    Filter,
+    CalendarClock,
+    Sparkles,
 } from "lucide-react"
 
+// ---------- Types ----------
+
 type Org = { id: string; name: string }
+
 type Project = {
     id: string
     key: string
@@ -30,11 +39,15 @@ type Props = {
 }
 
 const STATUS_OPTIONS = ["ACTIVE", "PLANNING", "PAUSED", "ARCHIVED"] as const
+
 type ViewMode = "grid" | "list"
+
 type SortKey = "updated" | "name" | "tasks"
 
+// ---------- Helpers ----------
+
 function statusStyle(status: string) {
-    const s = status.toUpperCase()
+    const s = (status || "").toUpperCase()
     if (s === "ACTIVE") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
     if (s === "PLANNING") return "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
     if (s === "PAUSED") return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
@@ -42,10 +55,16 @@ function statusStyle(status: string) {
     return "bg-muted text-foreground"
 }
 
-function usePersistentState<T>(
-    key: string,
-    initial: T
-): [T, React.Dispatch<React.SetStateAction<T>>] {
+function statusRing(status: string) {
+    const s = (status || "").toUpperCase()
+    if (s === "ACTIVE") return "from-emerald-500/30"
+    if (s === "PLANNING") return "from-sky-500/30"
+    if (s === "PAUSED") return "from-amber-500/30"
+    if (s === "ARCHIVED") return "from-zinc-500/30"
+    return "from-primary/20"
+}
+
+function usePersistentState<T>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
     const [state, setState] = React.useState<T>(() => {
         if (typeof window === "undefined") return initial
         const raw = localStorage.getItem(key)
@@ -59,11 +78,13 @@ function usePersistentState<T>(
     return [state, setState]
 }
 
+// ---------- Component ----------
+
 export default function ProjectsExplorer({ projects, organizations }: Props) {
     const router = useRouter()
     const sp = useSearchParams()
 
-    // Toolbar state (persist basic prefs)
+    // Toolbar state (persist some prefs)
     const [view, setView] = usePersistentState<ViewMode>("projects:view", "grid")
     const [q, setQ] = React.useState(sp.get("q") ?? "")
     const [org, setOrg] = React.useState(sp.get("org") ?? "all")
@@ -76,15 +97,15 @@ export default function ProjectsExplorer({ projects, organizations }: Props) {
 
         if (q.trim()) {
             const term = q.trim().toLowerCase()
-            res = res.filter(p =>
+            res = res.filter((p) =>
                 [p.name, p.key, p.description, p.organization?.name]
                     .filter(Boolean)
-                    .some(v => String(v).toLowerCase().includes(term))
+                    .some((v) => String(v).toLowerCase().includes(term))
             )
         }
 
-        if (org !== "all") res = res.filter(p => p.organization?.id === org)
-        if (status !== "all") res = res.filter(p => p.status?.toUpperCase() === status.toUpperCase())
+        if (org !== "all") res = res.filter((p) => p.organization?.id === org)
+        if (status !== "all") res = res.filter((p) => p.status?.toUpperCase() === status.toUpperCase())
 
         res.sort((a, b) => {
             if (sort === "updated") {
@@ -100,6 +121,15 @@ export default function ProjectsExplorer({ projects, organizations }: Props) {
         return res
     }, [projects, q, org, status, sort])
 
+    // Metrics (client-side)
+    const metrics = React.useMemo(() => {
+        const total = projects.length
+        const byStatus = Object.fromEntries(
+            STATUS_OPTIONS.map((s) => [s, projects.filter((p) => (p.status || "").toUpperCase() === s).length])
+        ) as Record<(typeof STATUS_OPTIONS)[number], number>
+        return { total, ...byStatus }
+    }, [projects])
+
     // Push simple filters to URL (no reload)
     React.useEffect(() => {
         const usp = new URLSearchParams()
@@ -113,11 +143,10 @@ export default function ProjectsExplorer({ projects, organizations }: Props) {
 
     return (
         <div className="space-y-6">
-            {/* Toolbar */}
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-1 items-center gap-2">
-                    {/* Search */}
-                    <div className="relative w-full md:w-80">
+            {/* Sub-header chips / quick filters */}
+            <div className="flex flex-col gap-3 rounded-2xl border bg-card/60 p-4 backdrop-blur-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative w-full sm:w-80">
                         <input
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
@@ -130,7 +159,6 @@ export default function ProjectsExplorer({ projects, organizations }: Props) {
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     </div>
 
-                    {/* Org filter */}
                     <div className="relative">
                         <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <select
@@ -140,13 +168,14 @@ export default function ProjectsExplorer({ projects, organizations }: Props) {
                         >
                             <option value="all">All orgs</option>
                             {organizations.map((o) => (
-                                <option key={o.id} value={o.id}>{o.name}</option>
+                                <option key={o.id} value={o.id}>
+                                    {o.name}
+                                </option>
                             ))}
                         </select>
                         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
                     </div>
 
-                    {/* Status filter */}
                     <div className="relative">
                         <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <select
@@ -156,49 +185,70 @@ export default function ProjectsExplorer({ projects, organizations }: Props) {
                         >
                             <option value="all">All statuses</option>
                             {STATUS_OPTIONS.map((s) => (
-                                <option key={s} value={s}>{s}</option>
+                                <option key={s} value={s}>
+                                    {s}
+                                </option>
                             ))}
                         </select>
                         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
                     </div>
+
+                    <div className="ml-auto flex items-center gap-2">
+                        <div className="relative">
+                            <SortAsc className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <select
+                                value={sort}
+                                onChange={(e) => setSort(e.target.value as SortKey)}
+                                className="h-10 appearance-none rounded-xl border bg-background pl-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                                <option value="updated">Recently updated</option>
+                                <option value="name">Name (A–Z)</option>
+                                <option value="tasks">Most tasks</option>
+                            </select>
+                            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
+                        </div>
+
+                        <div className="ml-1 flex items-center rounded-xl border p-1">
+                            <Button
+                                variant={view === "grid" ? "default" : "ghost"}
+                                size="icon"
+                                className={cn("h-8 w-8 rounded-lg", view === "grid" ? "" : "text-muted-foreground")}
+                                onClick={() => setView("grid")}
+                                aria-label="Grid view"
+                            >
+                                <Grid2X2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant={view === "list" ? "default" : "ghost"}
+                                size="icon"
+                                className={cn("h-8 w-8 rounded-lg", view === "list" ? "" : "text-muted-foreground")}
+                                onClick={() => setView("list")}
+                                aria-label="List view"
+                            >
+                                <List className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Sort + View */}
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <SortAsc className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <select
-                            value={sort}
-                            onChange={(e) => setSort(e.target.value as SortKey)}
-                            className="h-10 appearance-none rounded-xl border bg-background pl-9 pr-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                {/* KPI pills */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">
+                        <Sparkles className="h-3.5 w-3.5" /> {metrics.total} total
+                    </span>
+                    {STATUS_OPTIONS.map((s) => (
+                        <button
+                            key={s}
+                            onClick={() => setStatus((prev) => (prev === s ? "all" : s))}
+                            className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors",
+                                status === s ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
+                            )}
+                            aria-label={`Filter by ${s}`}
                         >
-                            <option value="updated">Recently updated</option>
-                            <option value="name">Name (A–Z)</option>
-                            <option value="tasks">Most tasks</option>
-                        </select>
-                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">▾</span>
-                    </div>
-
-                    <div className="ml-1 flex items-center rounded-xl border p-1">
-                        <Button
-                            variant={view === "grid" ? "default" : "ghost"}
-                            size="icon"
-                            className={cn("h-8 w-8 rounded-lg", view === "grid" ? "" : "text-muted-foreground")}
-                            onClick={() => setView("grid")}
-                            aria-label="Grid view"
-                        >
-                            <Grid2X2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant={view === "list" ? "default" : "ghost"}
-                            size="icon"
-                            className={cn("h-8 w-8 rounded-lg", view === "list" ? "" : "text-muted-foreground")}
-                            onClick={() => setView("list")}
-                            aria-label="List view"
-                        >
-                            <List className="h-4 w-4" />
-                        </Button>
-                    </div>
+                            {s.toLowerCase()} • {metrics[s] ?? 0}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -244,11 +294,24 @@ function ProjectCard({ project }: { project: Project }) {
             <Card
                 className={cn(
                     "group relative h-full cursor-pointer overflow-hidden rounded-2xl border",
-                    "transition-all hover:shadow-lg hover:border-primary/50"
+                    "transition-all hover:shadow-xl hover:-translate-y-0.5",
+                    "[border-image:linear-gradient(to_bottom_right,var(--color-primary)/40,transparent)_1]"
                 )}
             >
-                {/* soft gradient accent */}
+                {/* Color ring accent by status */}
+                <div
+                    className={cn(
+                        "pointer-events-none absolute -inset-px rounded-2xl",
+                        "bg-linear-to-br via-transparent to-transparent opacity-0 transition-opacity duration-300",
+                        `from-20% ${statusRing(project.status)}`,
+                        "group-hover:opacity-100"
+                    )}
+                    aria-hidden
+                />
+
+                {/* soft gradient noise */}
                 <div className="pointer-events-none absolute inset-0 opacity-60 [background:radial-gradient(120px_80px_at_20%_0%,hsl(var(--primary)/0.12),transparent_60%),radial-gradient(120px_80px_at_100%_20%,hsl(var(--muted-foreground)/0.08),transparent_60%)]" />
+
                 <CardHeader className="relative">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-semibold">
@@ -264,6 +327,7 @@ function ProjectCard({ project }: { project: Project }) {
                         </div>
                     </div>
                 </CardHeader>
+
                 <CardContent className="relative space-y-3">
                     {project.description ? (
                         <p className="line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
@@ -272,15 +336,11 @@ function ProjectCard({ project }: { project: Project }) {
                     )}
 
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="rounded-full bg-muted px-2 py-0.5">
-                            {project.counts.tasks} tasks
-                        </span>
-                        <span className="rounded-full bg-muted px-2 py-0.5">
-                            {project.counts.sprints} sprints
-                        </span>
-                        <span className={cn("rounded-full px-2 py-0.5 font-medium", statusStyle(project.status))}>
-                            {project.status}
-                        </span>
+                        <span className="rounded-full bg-muted px-2 py-0.5">{project.counts.tasks} tasks</span>
+                        <span className="rounded-full bg-muted px-2 py-0.5">{project.counts.sprints} sprints</span>
+                        <span className={cn("rounded-full px-2 py-0.5 font-medium", statusStyle(project.status))}>{
+                            project.status
+                        }</span>
                         <span className="ml-auto inline-flex items-center gap-1">
                             <CalendarClock className="h-3.5 w-3.5" />
                             {updated.toLocaleDateString()}
@@ -305,9 +365,9 @@ function ProjectRow({ project }: { project: Project }) {
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{project.name}</span>
-                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", statusStyle(project.status))}>
-                        {project.status}
-                    </span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", statusStyle(project.status))}>{
+                        project.status
+                    }</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="truncate inline-flex items-center gap-1">
@@ -316,8 +376,7 @@ function ProjectRow({ project }: { project: Project }) {
                     <span>{project.counts.tasks} tasks</span>
                     <span>{project.counts.sprints} sprints</span>
                     <span className="ml-auto inline-flex items-center gap-1">
-                        <CalendarClock className="h-3.5 w-3.5" />
-                        Updated {updated.toLocaleDateString()}
+                        <CalendarClock className="h-3.5 w-3.5" /> Updated {updated.toLocaleDateString()}
                     </span>
                 </div>
             </div>
